@@ -149,7 +149,7 @@ var Apply = inState =>
             break;
 
         case "program" :
-            dqs("#id_order").value = "1";
+            dqs("#id_order").value = "6";
             match = FindDate(dqs("select.program_val"), dateCurrentLong);
             if(match)
             {
@@ -165,7 +165,7 @@ var Apply = inState =>
             break;
 
         case "devotion" :
-            dqs("#id_order").value = "2";
+            dqs("#id_order").value = "7";
             match = FindDate(dqs("select.devotion_val"), dateCurrentShort);
             if(match)
             {
@@ -179,15 +179,39 @@ var Apply = inState =>
                 });
             }
             break;
+        
+        case "bible" :
+            dqs("#id_order").value = "8";
+            
+            var thumb = "/static/uploads/explore/Feb-"+inState.Date.getDate()+"-Scripture.jpg";
+            inputImage.value = thumb;
+            formImage.src = thumb;
+
+            var passage = inputTitle.value;
+            var indexBook = passage.lastIndexOf(" ");
+            var indexVerse = passage.indexOf(":");
+
+            var partBook = passage.substring(0, indexBook);
+            var partChapter = passage.substring(indexBook+1, indexVerse);
+            var partVerse = passage.substring(indexVerse+1).replace("—", "-");
+
+            dqs("#bible_ref_book").value = partBook;
+            dqs("#bible_ref_book").dispatchEvent(new Event("change"));
+            dqs("#bible_ref_chapter").value = partChapter;
+            dqs("#bible_ref_chapter").dispatchEvent(new Event("change"));
+            dqs("#bible_ref_verse").value = partVerse;
+            dqs("#bible_ref_verse").dispatchEvent(new Event("change"));
+
+            break;
     }
 
 };
 
 /*********************************************************/
-if(document.title.indexOf("Change Explore Feed") != -1)
+if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf("Add Explore Feed") != -1)
 {
     var dates = [DateOffset(0), DateOffset(1), DateOffset(2), DateOffset(3), DateOffset(4), DateOffset(5), DateOffset(6), DateOffset(7)];
-    var types = ["program", "devotion", "sermon"];
+    var types = ["program", "devotion", "bible", "sermon"];
     dqs("#content").prepend(
 
         H("div", false, [
@@ -271,6 +295,12 @@ var DataRange = (dateStart, dateStop, inData) =>
             output.push(item);
             item.CSSLeft = (item.Start - dateStart)/dateRange * 100;
             item.CSSWidth = (item.Stop - item.Start)/dateRange * 100;
+
+            {
+                let pointer = item;
+                FetchQuery(pointer.Link, "#id_image").then(input=>pointer.Image = input.value);
+            }
+            
         }
     }
     return output;
@@ -297,14 +327,14 @@ var DataCatalog = inList =>
 /*********************************************************/
 var i;
 var rangeMin = -1;
-var rangeMax = 4;
+var rangeMax = 5;
 var rangeDays = [];
 for(i=rangeMin; i<rangeMax; i++)
 {
     rangeDays.push(DateOffset(i));
 }
 
-var db = DataBuild(dqa("#result_list tr"));
+var db = DataBuild(dqa("#result_list tbody tr"));
 var dbSelection = DataRange(rangeDays[0], rangeDays[rangeDays.length-1], db);
 var dbCatalog = DataCatalog(dbSelection);
 
@@ -382,8 +412,22 @@ var RenderBreakdown = (order, index, array) =>
     ]);
 };
 
+var HandleOld = inEvent =>
+{
+    var time = new Date();
+    var event = new Event("click");
+    var i, item;
+    for(i=0; i<db.length; i++)
+    {
+        item = db[i];
+        if(item.Stop < time)
+        {
+            item.DOM[0].children[0].click(event);
+        }
+    }
+}
 
-var HandleClick = inEvent =>
+var HandleSample = inEvent =>
 {
     var rect = inEvent.currentTarget.getBoundingClientRect();
     var percent = (inEvent.clientX - rect.left)/rect.width;
@@ -414,7 +458,22 @@ var HandleClick = inEvent =>
                 {
                     matches.push(item);
                     samplePanels.append(
-                        H("div", {style:{margin:"5px", padding:"5px", borderRadius:"5px", background:"#eee"}}, item.Name )
+                        H("div", {style:{
+                                margin:"5px",
+                                padding:"5px",
+                                borderRadius:"5px",
+                                background:"#eee"
+                            }},
+                            [
+                                H("a", {href:item.Link, target:"_blank"}, (i+1)+" "+item.Name),
+                                H("img", {src:item.Image, style:{
+                                    display:"block",
+                                    width:"100%",
+                                    height:"auto",
+                                    marginTop:"8px"
+                                }})
+                            ]
+                        )
                     )
                 }
             }
@@ -427,9 +486,10 @@ if(document.title.indexOf("Select Explore Feed to change") != -1)
     dqs("#content").prepend(
         H("div", {ref:"samplePanels", style:{display:"flex"}}, []),
         H("div", {style:{position:"relative", margin:"50px 1em 1em 100px"}}, [
-            H("div", {style:{position:"absolute", width:"100%", height:"100%"}, onclick:HandleClick}, domColumns),
+            H("div", {style:{position:"absolute", width:"100%", height:"100%"}, onclick:HandleSample}, domColumns),
             H("div", false, dbCatalog.Featured.map(RenderBreakdown)),
             H("div", {ref:"sampleLine", style:{position:"absolute", left:"0%", top:"-5%", width:"2px", height:"105%", background:"red"}})
-        ])
+        ]),
+        H("button", {onclick:HandleOld}, "select exired events")
     );
 }
