@@ -90,7 +90,7 @@ var DateMonths = ["January", "February", "March", "April", "May", "June", "July"
 var DateDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 var DateOffset = inShift => {
     date = new Date();
-    date.setDate(new Date().getDate()+inShift);
+    date.setDate(date.getDate()+inShift);
     date.setHours(0,0,0,0);
     return date;
 };
@@ -105,8 +105,8 @@ var Apply = inState =>
     var dateCurrentShort = DateShort(inState.Date);
     var dateCurrentLong = DateLong(inState.Date);
 
-    var dateNextLong = new Date();
-    dateNextLong.setDate(inState.Date.getDate()+1);
+    var dateNextLong = new Date(inState.Date);
+    dateNextLong.setDate(dateNextLong.getDate()+1);
     dateNextLong = DateLong(dateNextLong);
 
     //feed track
@@ -300,7 +300,6 @@ var DataRange = (dateStart, dateStop, inData) =>
                 let pointer = item;
                 FetchQuery(pointer.Link, "#id_image").then(input=>pointer.Image = input.value);
             }
-            
         }
     }
     return output;
