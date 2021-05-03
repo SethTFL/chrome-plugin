@@ -1,3 +1,5 @@
+
+
 var dqs = s => document.querySelector(s);
 var dqa = s => document.querySelectorAll(s);
 var dce = s => document.createElement(s);
@@ -86,16 +88,22 @@ var FetchQuery = (inURL, inSelector) =>
         e => console.log("error handler", e)
     );
 };
+var FetchClear = () =>
+{
+    window.FetchDone();
+    window.FetchDone = () => {};
+}
 var DateMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 var DateDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 var DateOffset = inShift => {
     date = new Date();
-    date.setDate(new Date().getDate()+inShift);
+    date.setDate(date.getDate()+inShift);
     date.setHours(0,0,0,0);
     return date;
 };
 var DatePad = inNumber => (inNumber < 10) ? "0"+inNumber : ""+inNumber;
 var DateLong = inDate => [inDate.getFullYear(), DatePad(inDate.getMonth()+1), DatePad(inDate.getDate())].join("-");
+var DateMedium = inDate => DateDays[inDate.getDay()] + " ("+inDate.getDate()+")"
 var DateShort = inDate =>
 {
     return DateMonths[inDate.getMonth()]+" "+inDate.getDate();
@@ -105,8 +113,8 @@ var Apply = inState =>
     var dateCurrentShort = DateShort(inState.Date);
     var dateCurrentLong = DateLong(inState.Date);
 
-    var dateNextLong = new Date();
-    dateNextLong.setDate(inState.Date.getDate()+1);
+    var dateNextLong = new Date(inState.Date);
+    dateNextLong.setDate(dateNextLong.getDate()+1);
     dateNextLong = DateLong(dateNextLong);
 
     //feed track
@@ -144,7 +152,8 @@ var Apply = inState =>
                 {
                     inputImage.value = el.value;
                     formImage.src = inputImage.value;
-                });
+                })
+                .then( FetchClear );
             }
             break;
 
@@ -160,7 +169,8 @@ var Apply = inState =>
                 {
                     inputImage.value = el.value;
                     formImage.src = inputImage.value;
-                });
+                })
+                .then( FetchClear );
             }
             break;
 
@@ -176,7 +186,8 @@ var Apply = inState =>
                 {
                     inputImage.value = el.getAttribute("href");
                     formImage.src = inputImage.value;
-                });
+                })
+                .then( FetchClear );
             }
             break;
         
@@ -202,30 +213,66 @@ var Apply = inState =>
             dqs("#bible_ref_verse").value = partVerse;
             dqs("#bible_ref_verse").dispatchEvent(new Event("change"));
 
+            FetchClear();
+
             break;
     }
 
 };
+let QueryObj = inString =>
+{
+    var query = {};
+    inString.slice(1).split("&").forEach(kvp =>
+    {
+        let [k, v] = kvp.split("=");
+        query[k] = decodeURIComponent(v)||undefined;
+    });
+    return query;
+};
 
 /*********************************************************/
+
+var i;
+var rangeMin = -1;
+var rangeMax = 14;
+var rangeDays = [];
+for(i=rangeMin; i<rangeMax; i++)
+{
+    rangeDays.push(DateOffset(i));
+}
+var rangeTypes = ["program", "devotion", "bible", "sermon"];
+
+
 if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf("Add Explore Feed") != -1)
 {
-    var dates = [DateOffset(0), DateOffset(1), DateOffset(2), DateOffset(3), DateOffset(4), DateOffset(5), DateOffset(6), DateOffset(7)];
     var types = ["program", "devotion", "bible", "sermon"];
+    
+    var submitHandler = inEvent=>
+    {
+        Apply({ Date:new Date(formDate.value), Type:formType.value});
+    };
+    
     dqs("#content").prepend(
 
         H("div", false, [
-            H("select", {ref:"formDate"}, dates.map(  d => H("option", {value:d}, DateDays[d.getDay()]+" "+d.getDate())  )),
-            H("select", {ref:"formType"}, types.map(  t => H("option", {value:t}, t)  )),
-            H("button", {onclick:inEvent=>{
-                Apply({
-                    Date:new Date(formDate.value),
-                    Type:formType.value});
-            }}, "Autofill"),
+            H("select", {ref:"formDate"}, rangeDays.map(  d => H("option", {value:d}, DateMedium(d))  )),
+            H("select", {ref:"formType"}, rangeTypes.map(  t => H("option", {value:t}, t)  )),
+            H("button", {onclick:submitHandler}, "Autofill"),
             H("img", {ref:"formImage"})
         ])
     );
+
+    var query = QueryObj(window.location.search);
+    if(query.date && query.type)
+    {
+        formDate.selectedIndex = query.date;
+        formType.selectedIndex = query.type;
+        //window.FetchDone = () => dqs("form").submit(); /* this will submit the form on the opened page */
+        submitHandler();
+    }
 }
+
+
 
 
 /*******************************/
@@ -279,13 +326,17 @@ var DataBuild = inRows =>
 
     return output;
 };
+var SizeFromDate = (inItem, inStart, inStop) =>
+{
+    let range = inStop-inStart;
+    inItem.CSSLeft = (inItem.Start - inStart)/range * 100;
+    inItem.CSSWidth = (inItem.Stop - inItem.Start)/range * 100;
+};
 var DataRange = (dateStart, dateStop, inData) =>
 {
     var dateStart, dateStop, dateRange;
     var output = [];
     var i, item;
-
-    dateRange = dateStop-dateStart;
 
     for(i=0; i<inData.length; i++)
     {
@@ -293,14 +344,12 @@ var DataRange = (dateStart, dateStop, inData) =>
         if(item.Start <= dateStop && item.Stop >= dateStart)
         {
             output.push(item);
-            item.CSSLeft = (item.Start - dateStart)/dateRange * 100;
-            item.CSSWidth = (item.Stop - item.Start)/dateRange * 100;
+            SizeFromDate(item, dateStart, dateStop);
 
             {
                 let pointer = item;
                 FetchQuery(pointer.Link, "#id_image").then(input=>pointer.Image = input.value);
             }
-            
         }
     }
     return output;
@@ -324,19 +373,62 @@ var DataCatalog = inList =>
     return output;
 }
 
-/*********************************************************/
-var i;
-var rangeMin = -1;
-var rangeMax = 5;
-var rangeDays = [];
-for(i=rangeMin; i<rangeMax; i++)
+/************************************/
+let CheckEvent = (inChannel, inDate) =>
 {
-    rangeDays.push(DateOffset(i));
-}
+    let sample = new Date(inDate);
+    sample.setHours(12);
+    
+    for(let i=0; i<inChannel.length; i++)
+    {
+        let item = inChannel[i];
+        if(item.Start < sample && item.Stop > sample)
+        {
+            return item;
+        }
+    }
+    return false;
+};
+let CheckChannel = (inChannel, inType, inDates) =>
+{
+    var output = [];
+    var suggestion;
+    
+    for(let i=0; i<inDates.length; i++)
+    {
+        var itemIn = CheckEvent(inChannel, inDates[i]);
+        if(!itemIn)
+        {
+            suggestion = {
+                Start:new Date(inDates[i]),
+                Stop:new Date(inDates[i]).setHours(24),
+                Suggestion:true,
+                Link:"/admin/explore/explore/add/?date="+i+"&type="+inType
+            };
+            SizeFromDate(suggestion, inDates[0], inDates[inDates.length-1]);
+            output.push(suggestion);
+        }
+    }
+    return output;
+};
+let CheckChannels = (inChannels, inDates) =>
+{
+    var empties = CheckChannel(inChannels[5], 0, inDates);
+    empties.forEach(item =>
+    {
+        window.open(item.Link, '_blank').focus();
+    });
+};
+/************************************/
+
+/*********************************************************/
+
 
 var db = DataBuild(dqa("#result_list tbody tr"));
 var dbSelection = DataRange(rangeDays[0], rangeDays[rangeDays.length-1], db);
 var dbCatalog = DataCatalog(dbSelection);
+
+
 
 var domColumns = [];
 var domRows = [];
@@ -360,15 +452,53 @@ for(i=0; i<rangeDays.length-1; i++)
 
     };
     domColumns.push(H("div", {style:cssSection}, [ 
-        H("div", {style:cssLabel}, DateDays[rangeDays[i].getDay()])
+        H("div", {style:cssLabel}, DateMedium(rangeDays[i]))
     ]));
 }
 
+
+var RenderSuggestions = items =>
+{
+    var cssBar = {
+        display:"block",
+        position:"absolute",
+        top:0,
+        height:"100%",
+        boxSizing:"border-box",
+        borderRadius:"5px",
+        border:"1px solid gray",
+        background:"red",
+        cursor:"pointer",
+        color:"white",
+        fontWeight:"bolder",
+        opacity:0.8,
+    };
+    var children = items.map(item =>{
+        cssBar.left = item.CSSLeft+"%";
+        cssBar.width = item.CSSWidth+"%";
+        return H("a", {
+            class:"Bar",
+            style:cssBar,
+            onmouseenter:function(e){this.style.backgroundColor = "purple"},
+            onmouseleave:function(e){this.style.backgroundColor = "red"},
+            href:item.Link
+        }, "Create")
+    });
+    children.unshift(
+        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, "(Missing Events)")
+    );
+    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, children);
+};
+
 var RenderEvent = item =>
 {
-    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
-        H("div", {class:"Bar", style:{
+    var input = item.DOM[0].querySelector("input");
+    var bar = H("div",
+    {
+        class:"Bar",
+        style:{
             position:"absolute",
+            top:0,
             left:item.CSSLeft+"%",
             width:item.CSSWidth+"%",
             height:"100%",
@@ -376,9 +506,23 @@ var RenderEvent = item =>
             borderRadius:"5px",
             border:"1px solid gray",
             background:item.Active ? "orange" : "gray",
-            opacity:0.8
-        }}, ""),
-        H("div", {class:"Label", style:{position:"relative", padding:"3px"}}, item.Name)
+            opacity:0.8,
+            cursor:"pointer"
+        },
+        onclick:e => input.click()
+    }, "");
+
+    input.addEventListener("change", e=>{
+        var color = (item.Active) ? "orange" : "gray";
+        if(e.target.checked){
+            color = "yellow";
+        }
+        bar.style.backgroundColor = color;
+    });
+
+    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
+        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, item.Name),
+        bar
     ]);
 };
 var RenderBreakdown = (order, index, array) =>
@@ -408,7 +552,10 @@ var RenderBreakdown = (order, index, array) =>
         H("div", {style:cssFill}, [
             H("div", {style:cssLabel}, "Order "+(index+1))
         ]),
-        ...order.map(RenderEvent)
+        ...order.map(RenderEvent),
+        (index==5) ? RenderSuggestions(CheckChannel(order, 0, rangeDays)) : "",
+        (index==6) ? RenderSuggestions(CheckChannel(order, 1, rangeDays)) : "",
+        (index==7) ? RenderSuggestions(CheckChannel(order, 2, rangeDays)) : ""
     ]);
 };
 
@@ -490,6 +637,6 @@ if(document.title.indexOf("Select Explore Feed to change") != -1)
             H("div", false, dbCatalog.Featured.map(RenderBreakdown)),
             H("div", {ref:"sampleLine", style:{position:"absolute", left:"0%", top:"-5%", width:"2px", height:"105%", background:"red"}})
         ]),
-        H("button", {onclick:HandleOld}, "select exired events")
+        H("button", {onclick:HandleOld}, "select exired events"),
     );
 }

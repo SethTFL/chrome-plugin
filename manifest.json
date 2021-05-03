@@ -1,10 +1,10 @@
 {
     "name": "Resource Getter",
-    "version": "2.0",
+    "version": "3.0",
     "description": "gets scheduled resources",
-    "manifest_version": 3,
+    "manifest_version": 2,
     "content_scripts" : [{
         "matches" : [ "https://*.truthforlife.org/admin/*"],
-        "js" : ["injected.js"]
+        "js" : ["injected.js", "react.js"]
     }]
 }
