@@ -279,13 +279,17 @@ var DataBuild = inRows =>
 
     return output;
 };
+var SizeFromDate = (inItem, inStart, inStop) =>
+{
+    let range = inStop-inStart;
+    inItem.CSSLeft = (inItem.Start - inStart)/range * 100;
+    inItem.CSSWidth = (inItem.Stop - inItem.Start)/range * 100;
+};
 var DataRange = (dateStart, dateStop, inData) =>
 {
     var dateStart, dateStop, dateRange;
     var output = [];
     var i, item;
-
-    dateRange = dateStop-dateStart;
 
     for(i=0; i<inData.length; i++)
     {
@@ -293,8 +297,7 @@ var DataRange = (dateStart, dateStop, inData) =>
         if(item.Start <= dateStop && item.Stop >= dateStart)
         {
             output.push(item);
-            item.CSSLeft = (item.Start - dateStart)/dateRange * 100;
-            item.CSSWidth = (item.Stop - item.Start)/dateRange * 100;
+            SizeFromDate(item, dateStart, dateStop);
 
             {
                 let pointer = item;
@@ -323,6 +326,51 @@ var DataCatalog = inList =>
     return output;
 }
 
+/************************************/
+let CheckEvent = (inChannel, inDate) =>
+{
+    let sample = new Date(inDate);
+    sample.setHours(12);
+    
+    for(let i=0; i<inChannel.length; i++)
+    {
+        let item = inChannel[i];
+        if(item.Start < sample && item.Stop > sample)
+        {
+            return item;
+        }
+    }
+    return false;
+};
+let CheckChannel = (inChannel, inType, inDates) =>
+{
+    var output = [];
+    var suggestion;
+    
+    for(let i=0; i<inDates.length; i++)
+    {
+        var itemIn = CheckEvent(inChannel, inDates[i]);
+        if(!itemIn)
+        {
+            suggestion = {
+                Start:new Date(inDates[i]),
+                Stop:new Date(inDates[i]).setHours(24),
+                Link:"?date="+i+"&type="+inType
+            };
+            SizeFromDate(suggestion, inDates[0], inDates[inDates.length-1]);
+            output.push(suggestion);
+        }
+    }
+    return output;
+};
+let CheckChannels = (inChannels, inDates) =>
+{
+    CheckChannel(inChannels[5], 0, inDates);
+    CheckChannel(inChannels[6], 1, inDates);
+    CheckChannel(inChannels[7], 2, inDates);
+};
+/************************************/
+
 /*********************************************************/
 var i;
 var rangeMin = -1;
@@ -336,6 +384,8 @@ for(i=rangeMin; i<rangeMax; i++)
 var db = DataBuild(dqa("#result_list tbody tr"));
 var dbSelection = DataRange(rangeDays[0], rangeDays[rangeDays.length-1], db);
 var dbCatalog = DataCatalog(dbSelection);
+
+
 
 var domColumns = [];
 var domRows = [];
@@ -363,7 +413,25 @@ for(i=0; i<rangeDays.length-1; i++)
     ]));
 }
 
-
+/*
+var RenderSuggestedEvent = item =>
+{
+    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
+        H("div", {class:"Bar", style:{
+            position:"absolute",
+            left:item.CSSLeft+"%",
+            width:item.CSSWidth+"%",
+            height:"100%",
+            boxSizing:"border-box",
+            borderRadius:"5px",
+            border:"1px solid gray",
+            background:item.Active ? "orange" : "gray",
+            opacity:0.8
+        }}, ""),
+        H("div", {class:"Label", style:{position:"relative", padding:"3px"}}, item.Name)
+    ]);
+};
+*/
 var RenderEvent = item =>
 {
     return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
