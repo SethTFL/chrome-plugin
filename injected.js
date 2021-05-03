@@ -210,7 +210,7 @@ var Apply = inState =>
 /*********************************************************/
 if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf("Add Explore Feed") != -1)
 {
-    var dates = [DateOffset(0), DateOffset(1), DateOffset(2), DateOffset(3), DateOffset(4), DateOffset(5), DateOffset(6), DateOffset(7)];
+    var dates = [DateOffset(0), DateOffset(1), DateOffset(2), DateOffset(3), DateOffset(4), DateOffset(5), DateOffset(6), DateOffset(7), DateOffset(8), DateOffset(9), DateOffset(10), DateOffset(11), DateOffset(12), DateOffset(13)];
     var types = ["program", "devotion", "bible", "sermon"];
     dqs("#content").prepend(
 
@@ -326,7 +326,7 @@ var DataCatalog = inList =>
 /*********************************************************/
 var i;
 var rangeMin = -1;
-var rangeMax = 5;
+var rangeMax = 14;
 var rangeDays = [];
 for(i=rangeMin; i<rangeMax; i++)
 {
@@ -362,6 +362,7 @@ for(i=0; i<rangeDays.length-1; i++)
         H("div", {style:cssLabel}, DateDays[rangeDays[i].getDay()])
     ]));
 }
+
 
 var RenderEvent = item =>
 {
