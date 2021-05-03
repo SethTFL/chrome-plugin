@@ -258,7 +258,6 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
         {
             dqs("form").submit();
         }
-
         submitHandler();
     }
 }
@@ -393,7 +392,7 @@ let CheckChannel = (inChannel, inType, inDates) =>
             suggestion = {
                 Start:new Date(inDates[i]),
                 Stop:new Date(inDates[i]).setHours(24),
-                Link:"?date="+i+"&type="+inType
+                Link:"/admin/explore/explore/add/?date="+i+"&type="+inType
             };
             SizeFromDate(suggestion, inDates[0], inDates[inDates.length-1]);
             output.push(suggestion);
@@ -403,9 +402,11 @@ let CheckChannel = (inChannel, inType, inDates) =>
 };
 let CheckChannels = (inChannels, inDates) =>
 {
-    CheckChannel(inChannels[5], 0, inDates);
-    CheckChannel(inChannels[6], 1, inDates);
-    CheckChannel(inChannels[7], 2, inDates);
+    var empties = CheckChannel(inChannels[5], 0, inDates);
+    empties.forEach(item =>
+    {
+        window.open(item.Link, '_blank').focus();
+    });
 };
 /************************************/
 
@@ -596,6 +597,11 @@ if(document.title.indexOf("Select Explore Feed to change") != -1)
             H("div", false, dbCatalog.Featured.map(RenderBreakdown)),
             H("div", {ref:"sampleLine", style:{position:"absolute", left:"0%", top:"-5%", width:"2px", height:"105%", background:"red"}})
         ]),
-        H("button", {onclick:HandleOld}, "select exired events")
+        H("button", {onclick:HandleOld}, "select exired events"),
+        H("button", {onclick:e=>
+        {
+            CheckChannels(dbCatalog.Featured, rangeDays);
+        }
+    }, "Batch Create Open Programs"),
     );
 }
