@@ -103,6 +103,7 @@ var DateOffset = inShift => {
 };
 var DatePad = inNumber => (inNumber < 10) ? "0"+inNumber : ""+inNumber;
 var DateLong = inDate => [inDate.getFullYear(), DatePad(inDate.getMonth()+1), DatePad(inDate.getDate())].join("-");
+var DateMedium = inDate => DateDays[inDate.getDay()] + " ("+inDate.getDate()+")"
 var DateShort = inDate =>
 {
     return DateMonths[inDate.getMonth()]+" "+inDate.getDate();
@@ -254,7 +255,7 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
     dqs("#content").prepend(
 
         H("div", false, [
-            H("select", {ref:"formDate"}, rangeDays.map(  d => H("option", {value:d}, DateDays[d.getDay()]+" "+d.getDate())  )),
+            H("select", {ref:"formDate"}, rangeDays.map(  d => H("option", {value:d}, DateMedium(d))  )),
             H("select", {ref:"formType"}, rangeTypes.map(  t => H("option", {value:t}, t)  )),
             H("button", {onclick:submitHandler}, "Autofill"),
             H("img", {ref:"formImage"})
@@ -451,7 +452,7 @@ for(i=0; i<rangeDays.length-1; i++)
 
     };
     domColumns.push(H("div", {style:cssSection}, [ 
-        H("div", {style:cssLabel}, DateShort(rangeDays[i]))
+        H("div", {style:cssLabel}, DateMedium(rangeDays[i]))
     ]));
 }
 
@@ -461,6 +462,7 @@ var RenderSuggestions = items =>
     var cssBar = {
         display:"block",
         position:"absolute",
+        top:0,
         height:"100%",
         boxSizing:"border-box",
         borderRadius:"5px",
@@ -468,7 +470,8 @@ var RenderSuggestions = items =>
         background:"red",
         cursor:"pointer",
         color:"white",
-        fontWeight:"bolder"
+        fontWeight:"bolder",
+        opacity:0.8,
     };
     var children = items.map(item =>{
         cssBar.left = item.CSSLeft+"%";
@@ -481,17 +484,21 @@ var RenderSuggestions = items =>
             href:item.Link
         }, "Create")
     });
-    children.push(
-        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, "(Missing Items)")
+    children.unshift(
+        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, "(Missing Events)")
     );
     return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, children);
 };
 
 var RenderEvent = item =>
 {
-    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
-        H("div", {class:"Bar", style:{
+    var input = item.DOM[0].querySelector("input");
+    var bar = H("div",
+    {
+        class:"Bar",
+        style:{
             position:"absolute",
+            top:0,
             left:item.CSSLeft+"%",
             width:item.CSSWidth+"%",
             height:"100%",
@@ -499,9 +506,23 @@ var RenderEvent = item =>
             borderRadius:"5px",
             border:"1px solid gray",
             background:item.Active ? "orange" : "gray",
-            opacity:0.8
-        }}, ""),
-        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, item.Name)
+            opacity:0.8,
+            cursor:"pointer"
+        },
+        onclick:e => input.click()
+    }, "");
+
+    input.addEventListener("change", e=>{
+        var color = (item.Active) ? "orange" : "gray";
+        if(e.target.checked){
+            color = "yellow";
+        }
+        bar.style.backgroundColor = color;
+    });
+
+    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
+        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, item.Name),
+        bar
     ]);
 };
 var RenderBreakdown = (order, index, array) =>
