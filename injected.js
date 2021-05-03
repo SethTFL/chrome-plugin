@@ -1,3 +1,5 @@
+
+
 var dqs = s => document.querySelector(s);
 var dqa = s => document.querySelectorAll(s);
 var dce = s => document.createElement(s);
@@ -216,7 +218,6 @@ var Apply = inState =>
     }
 
 };
-
 let QueryObj = inString =>
 {
     var query = {};
@@ -229,9 +230,20 @@ let QueryObj = inString =>
 };
 
 /*********************************************************/
+
+var i;
+var rangeMin = -1;
+var rangeMax = 14;
+var rangeDays = [];
+for(i=rangeMin; i<rangeMax; i++)
+{
+    rangeDays.push(DateOffset(i));
+}
+var rangeTypes = ["program", "devotion", "bible", "sermon"];
+
+
 if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf("Add Explore Feed") != -1)
 {
-    var dates = [DateOffset(0), DateOffset(1), DateOffset(2), DateOffset(3), DateOffset(4), DateOffset(5), DateOffset(6), DateOffset(7), DateOffset(8), DateOffset(9), DateOffset(10), DateOffset(11), DateOffset(12), DateOffset(13)];
     var types = ["program", "devotion", "bible", "sermon"];
     
     var submitHandler = inEvent=>
@@ -242,8 +254,8 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
     dqs("#content").prepend(
 
         H("div", false, [
-            H("select", {ref:"formDate"}, dates.map(  d => H("option", {value:d}, DateDays[d.getDay()]+" "+d.getDate())  )),
-            H("select", {ref:"formType"}, types.map(  t => H("option", {value:t}, t)  )),
+            H("select", {ref:"formDate"}, rangeDays.map(  d => H("option", {value:d}, DateDays[d.getDay()]+" "+d.getDate())  )),
+            H("select", {ref:"formType"}, rangeTypes.map(  t => H("option", {value:t}, t)  )),
             H("button", {onclick:submitHandler}, "Autofill"),
             H("img", {ref:"formImage"})
         ])
@@ -254,10 +266,7 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
     {
         formDate.selectedIndex = query.date;
         formType.selectedIndex = query.type;
-        window.FetchDone = () =>
-        {
-            dqs("form").submit();
-        }
+        //window.FetchDone = () => dqs("form").submit(); /* this will submit the form on the opened page */
         submitHandler();
     }
 }
@@ -392,6 +401,7 @@ let CheckChannel = (inChannel, inType, inDates) =>
             suggestion = {
                 Start:new Date(inDates[i]),
                 Stop:new Date(inDates[i]).setHours(24),
+                Suggestion:true,
                 Link:"/admin/explore/explore/add/?date="+i+"&type="+inType
             };
             SizeFromDate(suggestion, inDates[0], inDates[inDates.length-1]);
@@ -411,14 +421,7 @@ let CheckChannels = (inChannels, inDates) =>
 /************************************/
 
 /*********************************************************/
-var i;
-var rangeMin = -1;
-var rangeMax = 14;
-var rangeDays = [];
-for(i=rangeMin; i<rangeMax; i++)
-{
-    rangeDays.push(DateOffset(i));
-}
+
 
 var db = DataBuild(dqa("#result_list tbody tr"));
 var dbSelection = DataRange(rangeDays[0], rangeDays[rangeDays.length-1], db);
@@ -448,29 +451,42 @@ for(i=0; i<rangeDays.length-1; i++)
 
     };
     domColumns.push(H("div", {style:cssSection}, [ 
-        H("div", {style:cssLabel}, DateDays[rangeDays[i].getDay()])
+        H("div", {style:cssLabel}, DateShort(rangeDays[i]))
     ]));
 }
 
-/*
-var RenderSuggestedEvent = item =>
+
+var RenderSuggestions = items =>
 {
-    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
-        H("div", {class:"Bar", style:{
-            position:"absolute",
-            left:item.CSSLeft+"%",
-            width:item.CSSWidth+"%",
-            height:"100%",
-            boxSizing:"border-box",
-            borderRadius:"5px",
-            border:"1px solid gray",
-            background:item.Active ? "orange" : "gray",
-            opacity:0.8
-        }}, ""),
-        H("div", {class:"Label", style:{position:"relative", padding:"3px"}}, item.Name)
-    ]);
+    var cssBar = {
+        display:"block",
+        position:"absolute",
+        height:"100%",
+        boxSizing:"border-box",
+        borderRadius:"5px",
+        border:"1px solid gray",
+        background:"red",
+        cursor:"pointer",
+        color:"white",
+        fontWeight:"bolder"
+    };
+    var children = items.map(item =>{
+        cssBar.left = item.CSSLeft+"%";
+        cssBar.width = item.CSSWidth+"%";
+        return H("a", {
+            class:"Bar",
+            style:cssBar,
+            onmouseenter:function(e){this.style.backgroundColor = "purple"},
+            onmouseleave:function(e){this.style.backgroundColor = "red"},
+            href:item.Link
+        }, "Create")
+    });
+    children.push(
+        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, "(Missing Items)")
+    );
+    return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, children);
 };
-*/
+
 var RenderEvent = item =>
 {
     return H("div", {class:"Item", style:{position:"relative", overflow:"hidden", boxSizing:"border-box", margin:"0"}}, [
@@ -485,7 +501,7 @@ var RenderEvent = item =>
             background:item.Active ? "orange" : "gray",
             opacity:0.8
         }}, ""),
-        H("div", {class:"Label", style:{position:"relative", padding:"3px"}}, item.Name)
+        H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, item.Name)
     ]);
 };
 var RenderBreakdown = (order, index, array) =>
@@ -515,7 +531,10 @@ var RenderBreakdown = (order, index, array) =>
         H("div", {style:cssFill}, [
             H("div", {style:cssLabel}, "Order "+(index+1))
         ]),
-        ...order.map(RenderEvent)
+        ...order.map(RenderEvent),
+        (index==5) ? RenderSuggestions(CheckChannel(order, 0, rangeDays)) : "",
+        (index==6) ? RenderSuggestions(CheckChannel(order, 1, rangeDays)) : "",
+        (index==7) ? RenderSuggestions(CheckChannel(order, 2, rangeDays)) : ""
     ]);
 };
 
@@ -598,10 +617,5 @@ if(document.title.indexOf("Select Explore Feed to change") != -1)
             H("div", {ref:"sampleLine", style:{position:"absolute", left:"0%", top:"-5%", width:"2px", height:"105%", background:"red"}})
         ]),
         H("button", {onclick:HandleOld}, "select exired events"),
-        H("button", {onclick:e=>
-        {
-            CheckChannels(dbCatalog.Featured, rangeDays);
-        }
-    }, "Batch Create Open Programs"),
     );
 }
