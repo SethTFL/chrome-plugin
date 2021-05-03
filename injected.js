@@ -86,6 +86,11 @@ var FetchQuery = (inURL, inSelector) =>
         e => console.log("error handler", e)
     );
 };
+var FetchClear = () =>
+{
+    window.FetchDone();
+    window.FetchDone = () => {};
+}
 var DateMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 var DateDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 var DateOffset = inShift => {
@@ -144,7 +149,8 @@ var Apply = inState =>
                 {
                     inputImage.value = el.value;
                     formImage.src = inputImage.value;
-                });
+                })
+                .then( FetchClear );
             }
             break;
 
@@ -160,7 +166,8 @@ var Apply = inState =>
                 {
                     inputImage.value = el.value;
                     formImage.src = inputImage.value;
-                });
+                })
+                .then( FetchClear );
             }
             break;
 
@@ -176,7 +183,8 @@ var Apply = inState =>
                 {
                     inputImage.value = el.getAttribute("href");
                     formImage.src = inputImage.value;
-                });
+                })
+                .then( FetchClear );
             }
             break;
         
@@ -202,9 +210,22 @@ var Apply = inState =>
             dqs("#bible_ref_verse").value = partVerse;
             dqs("#bible_ref_verse").dispatchEvent(new Event("change"));
 
+            FetchClear();
+
             break;
     }
 
+};
+
+let QueryObj = inString =>
+{
+    var query = {};
+    inString.slice(1).split("&").forEach(kvp =>
+    {
+        let [k, v] = kvp.split("=");
+        query[k] = decodeURIComponent(v)||undefined;
+    });
+    return query;
 };
 
 /*********************************************************/
@@ -212,20 +233,37 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
 {
     var dates = [DateOffset(0), DateOffset(1), DateOffset(2), DateOffset(3), DateOffset(4), DateOffset(5), DateOffset(6), DateOffset(7), DateOffset(8), DateOffset(9), DateOffset(10), DateOffset(11), DateOffset(12), DateOffset(13)];
     var types = ["program", "devotion", "bible", "sermon"];
+    
+    var submitHandler = inEvent=>
+    {
+        Apply({ Date:new Date(formDate.value), Type:formType.value});
+    };
+    
     dqs("#content").prepend(
 
         H("div", false, [
             H("select", {ref:"formDate"}, dates.map(  d => H("option", {value:d}, DateDays[d.getDay()]+" "+d.getDate())  )),
             H("select", {ref:"formType"}, types.map(  t => H("option", {value:t}, t)  )),
-            H("button", {onclick:inEvent=>{
-                Apply({
-                    Date:new Date(formDate.value),
-                    Type:formType.value});
-            }}, "Autofill"),
+            H("button", {onclick:submitHandler}, "Autofill"),
             H("img", {ref:"formImage"})
         ])
     );
+
+    var query = QueryObj(window.location.search);
+    if(query.date && query.type)
+    {
+        formDate.selectedIndex = query.date;
+        formType.selectedIndex = query.type;
+        window.FetchDone = () =>
+        {
+            dqs("form").submit();
+        }
+
+        submitHandler();
+    }
 }
+
+
 
 
 /*******************************/
