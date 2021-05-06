@@ -263,7 +263,8 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
             H("select", {ref:"formDate"}, rangeDays.map(  d => H("option", {value:d}, DateMedium(d))  )),
             H("select", {ref:"formType"}, rangeTypes.map(  t => H("option", {value:t}, t)  )),
             H("button", {onclick:submitHandler}, "Autofill"),
-            H("img", {ref:"formImage"})
+            H("img", {ref:"formImage"}),
+            H("canvas", {ref:"formCanvas"})
         ])
     );
 
