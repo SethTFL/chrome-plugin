@@ -78,6 +78,7 @@ var FindDate = (inSelect, inDateString) =>
     }
     return false;
 };
+window.FetchDone = ()=>{};
 var FetchQuery = (inURL, inSelector) =>
 {
     var dom = new DOMParser();
@@ -140,7 +141,13 @@ var Apply = inState =>
     
     switch(inState.Type)
     {
+        case "static" :
+            dqs("#id_order").value = "1";
+            dqs("#id_order").dispatchEvent(new Event("change"));
+            break;
+
         case "sermon" :
+            dqs("#id_order").value = "1";
             match = FindDate(dqs("select.sermon_val"), dateCurrentLong);
             if(match)
             {
@@ -240,13 +247,11 @@ for(i=rangeMin; i<rangeMax; i++)
 {
     rangeDays.push(DateOffset(i));
 }
-var rangeTypes = ["program", "devotion", "bible", "sermon"];
+var rangeTypes = ["program", "devotion", "bible", "sermon", "static"];
 
 
 if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf("Add Explore Feed") != -1)
 {
-    var types = ["program", "devotion", "bible", "sermon"];
-    
     var submitHandler = inEvent=>
     {
         Apply({ Date:new Date(formDate.value), Type:formType.value});
@@ -411,14 +416,6 @@ let CheckChannel = (inChannel, inType, inDates) =>
     }
     return output;
 };
-let CheckChannels = (inChannels, inDates) =>
-{
-    var empties = CheckChannel(inChannels[5], 0, inDates);
-    empties.forEach(item =>
-    {
-        window.open(item.Link, '_blank').focus();
-    });
-};
 /************************************/
 
 /*********************************************************/
@@ -457,7 +454,7 @@ for(i=0; i<rangeDays.length-1; i++)
 }
 
 
-var RenderSuggestions = items =>
+var RenderSuggestions = (inButtonLabel, items) =>
 {
     var cssBar = {
         display:"block",
@@ -482,7 +479,7 @@ var RenderSuggestions = items =>
             onmouseenter:function(e){this.style.backgroundColor = "purple"},
             onmouseleave:function(e){this.style.backgroundColor = "red"},
             href:item.Link
-        }, "Create")
+        }, inButtonLabel)
     });
     children.unshift(
         H("div", {class:"Label", style:{display:"inline-block", position:"relative", padding:"3px"}}, "(Missing Events)")
@@ -548,14 +545,27 @@ var RenderBreakdown = (order, index, array) =>
         height:"100%",
     };
 
+    var suggestionButtons;
+    switch(index){
+        case 5 : 
+            suggestionButtons = RenderSuggestions("Add Program", CheckChannel(order, 0, rangeDays))     
+            break;
+        case 6 : 
+            suggestionButtons = RenderSuggestions("Add Devo",    CheckChannel(order, 1, rangeDays))     
+            break;
+        case 7 : 
+            suggestionButtons = RenderSuggestions("Add Bible",   CheckChannel(order, 2, rangeDays))     
+            break;
+        default:
+            suggestionButtons = RenderSuggestions("Add Link",    CheckChannel(order, 4, rangeDays))   
+    }
+
     return H("div", {class:"Order", style:cssOrder}, [
         H("div", {style:cssFill}, [
             H("div", {style:cssLabel}, "Order "+(index+1))
         ]),
         ...order.map(RenderEvent),
-        (index==5) ? RenderSuggestions(CheckChannel(order, 0, rangeDays)) : "",
-        (index==6) ? RenderSuggestions(CheckChannel(order, 1, rangeDays)) : "",
-        (index==7) ? RenderSuggestions(CheckChannel(order, 2, rangeDays)) : ""
+        suggestionButtons
     ]);
 };
 
