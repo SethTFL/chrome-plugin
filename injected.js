@@ -109,6 +109,7 @@ var DateShort = inDate =>
 {
     return DateMonths[inDate.getMonth()]+" "+inDate.getDate();
 };
+var DateFilename = inDate => DateMonths[inDate.getMonth()].substring(0, 3)+"-"+inDate.getDate()+"-Alt-Devo";
 var Apply = inState =>
 {
     var dateCurrentShort = DateShort(inState.Date);
@@ -138,7 +139,8 @@ var Apply = inState =>
     var match;
     var inputTitle = dqs("#id_title");
     var inputImage = dqs("#id_image");
-    
+    inputImage.addEventListener("blur", e=>formImage.src = inputImage.value);
+
     switch(inState.Type)
     {
         case "static" :
@@ -152,7 +154,6 @@ var Apply = inState =>
             if(match)
             {
                 inputTitle.value = match.Name;
-                inputImage.value = "finding image...";
 
                 FetchQuery("/admin/fiveq_resource_library/message/"+match.ID, "#id_image")
                 .then( el =>
@@ -170,7 +171,6 @@ var Apply = inState =>
             if(match)
             {
                 inputTitle.value = match.Name;
-                inputImage.value = "finding image...";
                 FetchQuery("/admin/broadcasts/broadcast/"+match.ID, "#id_img")
                 .then( el =>
                 {
@@ -187,7 +187,6 @@ var Apply = inState =>
             if(match)
             {
                 inputTitle.value = match.Name;
-                inputImage.value = "finding image...";
                 FetchQuery("/admin/fiveq_366_daily_devotional/dailydevotional/"+match.ID, "p a")
                 .then( el =>
                 {
@@ -236,6 +235,73 @@ let QueryObj = inString =>
     });
     return query;
 };
+//cut/stretch settings for inImage if you want it to fill inCanvas
+function Clip(inCanvas, inImage)
+{
+  var ratioCanvas = inCanvas.width/inCanvas.height;
+  var ratioImage = inImage.width/inImage.height;
+  var output = {};
+  if(ratioCanvas > ratioImage)
+  {
+    output.Width = inImage.width;
+    output.Height = inImage.width/ratioCanvas;
+    output.X = 0
+    output.Y = (inImage.height - output.Height)/2;
+  }
+  else
+  {
+    output.Height = inImage.height;
+    output.Width = inImage.height*ratioCanvas;
+    output.Y = 0
+    output.X = (inImage.width - output.Width)/2;
+  }
+  return output;
+}
+// limit the inClip settings to not go bigger than inImage
+function Limit(inClip, inImage)
+{
+  var adjustW, adjustH;
+  if(inClip.Width > inImage.width)
+  {
+    adjustW = inClip.Width - inImage.width;
+    adjustH = inClip.Height - inImage.height;
+
+    inClip.Width -= adjustW;
+    inClip.Height -= adjustH;
+    inClip.X += adjustW/2;
+    inClip.Y += adjustH/2;
+  }
+  return inClip;
+}
+function Align(inClip, inCanvas, inX, inY)
+{
+  var spanX, spanY;
+  spanX = inCanvas.width - inClip.Width;
+  spanY = inCanvas.height - inClip.Height;
+  inClip.X = spanX*inX;
+  inClip.Y = spanY*inY;
+  return inClip;
+}
+function Download(inCanvas, inFilename)
+{
+  var link;
+  link = document.createElement('a');
+  link.download = inFilename+".jpg";
+  link.href = inCanvas.toDataURL("image/jpg").replace("image/png", "image/octet-stream");
+  link.click();
+}
+function Draw(inWidth, inHeight, inBackground, inCanvas)
+{
+  inCanvas.width = inWidth;
+  inCanvas.height = inHeight;
+
+  clip = Clip(inCanvas, inBackground);
+  inCanvas.getContext("2d").drawImage(
+    inBackground,
+    clip.X, clip.Y, clip.Width, clip.Height,
+    0, 0, inCanvas.width, inCanvas.height
+  );
+}
 
 /*********************************************************/
 
@@ -262,11 +328,36 @@ if(document.title.indexOf("Change Explore Feed") != -1 || document.title.indexOf
         H("div", false, [
             H("select", {ref:"formDate"}, rangeDays.map(  d => H("option", {value:d}, DateMedium(d))  )),
             H("select", {ref:"formType"}, rangeTypes.map(  t => H("option", {value:t}, t)  )),
-            H("button", {onclick:submitHandler}, "Autofill"),
-            H("img", {ref:"formImage"}),
-            H("canvas", {ref:"formCanvas"})
+            H("button", {onclick:submitHandler}, "Autofill")
         ])
     );
+    
+    dqs(".form-row.field-image").append(H("div", false, [
+        H("img", {ref:"formImage", onclick:e=>Draw(960, 540, formImage, formCanvas), onload:e=>
+        {
+            ratio = Math.floor((formImage.width / formImage.height)*100);
+            if(ratio > 170 && ratio < 185)
+            {
+                formRatioWarning.innerHTML = `image ratio (${formImage.width}x${formImage.height} = ${formImage.width / formImage.height}) was good`;
+            }
+            else
+            {
+                formRatioWarning.innerHTML = `image ratio (${formImage.width}x${formImage.height} = ${formImage.width / formImage.height}) was incorrect, downloading this resized image:`;
+                Draw(960, 540, formImage, formCanvas);
+                var date = new Date(formDate.value);
+                Download(formCanvas, DateFilename(date));
+            }
+        }
+        }),
+        H("h3", {ref:"formRatioWarning"}, ""),
+        H("canvas", {style:{width:"960px", height:"540px"}, ref:"formCanvas", onclick:e=>
+        {
+            var date = new Date(formDate.value);
+            Download(formCanvas, DateFilename(date));
+        }
+        })
+    ]));
+
 
     var query = QueryObj(window.location.search);
     if(query.date && query.type)
@@ -399,15 +490,20 @@ let CheckChannel = (inChannel, inType, inDates) =>
 {
     var output = [];
     var suggestion;
-    
+
     for(let i=0; i<inDates.length; i++)
     {
+        var stop = new Date(inDates[i]).setHours(24);
+        if(stop < new Date())
+        {
+            continue;
+        }
         var itemIn = CheckEvent(inChannel, inDates[i]);
         if(!itemIn)
         {
             suggestion = {
                 Start:new Date(inDates[i]),
-                Stop:new Date(inDates[i]).setHours(24),
+                Stop:stop,
                 Suggestion:true,
                 Link:"/admin/explore/explore/add/?date="+i+"&type="+inType
             };
